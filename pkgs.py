@@ -49,6 +49,10 @@ def credentials(ftp):
         except ftplib.error_perm:
             print("\nInvalid Login details\n")
             tries -= 1
+        except ConnectionAbortedError:
+            print("\nAn Unexpected error occured\n")
+            tries = 0
+        finally:
             if tries == 0:
                 main.run()
                         
@@ -96,8 +100,9 @@ def upload():
                 print('Permissions                                Date           Name')
                 for line in data:
                     print(line)
-                print("\n1 - Select file to Upload, 2 - Change directory, 3 - Make new directory, 4 - Delete file ("
-                      "Enter a corresponding number)")
+                print("\n1 - Select file to Upload, 2 - Change directory")
+                print(" 3 - Make new directory, 4 - Delete file")
+                print("(Enter a corresponding number)")
                 input()
         ftp.quit()
     else:
