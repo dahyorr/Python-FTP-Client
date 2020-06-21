@@ -7,6 +7,7 @@ import pkgs
 
 
 def run():
+    """Starts tho program"""
     operation = 0
     while not operation:
         pkgs.print_intro()
@@ -17,8 +18,8 @@ def run():
 
 if __name__ == '__main__':
     print("""******************************************************************
-    *     FTP Client                                                 *
-    *     Upload/Download files to/from a ftp server                 *
-    *     Written By Dayo Adebanjo                                   *
-    ******************************************************************""")
+*     FTP Client                                                 *
+*     Upload/Download files to/from a ftp server                 *
+*     Written By Dayo Adebanjo                                   *
+******************************************************************""")
     run()

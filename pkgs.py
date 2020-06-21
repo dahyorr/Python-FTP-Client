@@ -4,6 +4,11 @@
    *                                                                *
    ******************************************************************"""
 import ftplib
+# import ftputil
+import sys
+import socket
+from getpass import getpass
+# import os
 import main
 
 
@@ -15,29 +20,30 @@ def print_intro():
     3. Exit\n""")
 
 
-def check_input(op):
+def check_input(selected_operation):
     """Checks the text input by the user and returns the required function
-    :arg op: Input value or string from user
+    :arg selected_operation: Input value or string from user
     """
-    op = op.lower()
+    selected_operation = selected_operation.lower()
     try:
-        op = int(op)
+        selected_operation = int(selected_operation)
     except ValueError:
         pass
     finally:
-        if op == "upload" or op == 1:
-            return upload
-        elif op == "download" or op == 2:
-            return download
-        elif op == "exit" or op == 3:
-            exit()
+        if selected_operation == "upload" or selected_operation == 1:
+            return_value = upload
+        elif selected_operation == "download" or selected_operation == 2:
+            return_value = download
+        elif selected_operation == "exit" or selected_operation == 3:
+            sys.exit()
         else:
             print("Invalid Choice, Enter a valid number of choice")
-            return 0
+            return_value = 0
+    return return_value
 
 
 def credentials(ftp):
-    from getpass import getpass
+    """Gets username and password and authenticates the ftp object"""
     tries = 3
     while tries:
         username = input('Enter Your Username: ')
@@ -54,20 +60,22 @@ def credentials(ftp):
             tries = 0
         finally:
             if tries == 0:
+                ftp.quit()
                 main.run()
-                        
-                        
-def set_ftp(server):
+
+
+def set_ftp():
     """Resolves the specified server address"""
-    import socket
+    server = input("Enter the address you want to connect to: ")
+    server = server.strip()
     try:
-        if server != "":
-            ftp = ftplib.FTP(server)
-            return ftp
-        else:
+        if server == "":
             return "\nEnter a valid server address\n"
+        ftp = ftplib.FTP(server)
+        return ftp
     except TimeoutError:
-        print("\nconnection attempt failed because the connected party did not properly respond after a period of time")
+        print("\nconnection attempt failed because the connected party"
+              " did not properly respond after a period of time")
         return "connection timed out, check that you have the right address\n"
     except ConnectionRefusedError:
         print("\nNo connection could be made because the target machine actively refused it")
@@ -79,31 +87,141 @@ def set_ftp(server):
         return "\nAn Unexpected error occ1urred\n"
 
 
+def get_dir_path(ftp):
+    """Gets current working directory path"""
+    try:
+        query_dir = (ftp.sendcmd('PWD')).split()
+        return query_dir[1].strip('"')
+    except ftplib.error_temp:
+        print('Connection Timeout, Enter your credentials again\n')
+        credentials(ftp)
+
+
+def change_dir(ftp):
+    """Change FTP current Dir"""
+    new_dir = input("Enter the path you wish to change to "
+                    "(e.g /folder/sub_folder) or enter a folder name from current dir:\n ")
+    current_directory = get_dir_path(ftp)
+    if new_dir[0] != '/' and current_directory != '/':
+        new_dir = current_directory + '/' + new_dir
+    elif new_dir[0] != '/' and current_directory == '/':
+        new_dir = '/' + new_dir
+    print("changing to " + new_dir)
+    try:
+        ftp.cwd(new_dir)
+    except ftplib.error_perm:
+        print("Failed to change directory check that you have the right directory")
+    except ftplib.error_temp:
+        print('Connection Timeout, Enter your credentials again\n')
+        credentials(ftp)
+    if get_dir_path(ftp) == new_dir:
+        return_val = 1
+    else:
+        return_val = 0
+    return return_val
+
+
+def pwd(ftp):
+    """Prints FTP current working directory tree"""
+    temp_dir = get_dir_path(ftp)
+    data = []
+    try:
+        ftp.dir(data.append)
+    except ftplib.error_temp:
+        print('Connection Timeout, Enter your credentials again\n')
+        credentials(ftp)
+    finally:
+        print('Current Directory - ' + temp_dir + '\n')
+        print('Permission   Date Created  Filename')
+        for line in data:
+            line = line.split()
+            try:
+                ftp.cwd(temp_dir + '/' + line[8])
+                file_type = 'Folder'
+            except ftplib.error_perm:
+                file_type = 'File'
+            finally:
+                ftp.cwd(temp_dir)
+
+            print(line[0] + '   ' + line[5], line[6], line[7] + "  "
+                  + line[8] + "     " + file_type)
+
+
+def create_dir(ftp):
+    """Creates new directory"""
+    new_mkdir = input("Enter the new directory name: ")
+    try:
+        ftp.mkd(new_mkdir)
+        print('Directory Created')
+        return 1
+    except ftplib.error_perm:
+        print('You do not have write permission in this folder or this folder already exists')
+        return 0
+    except ftplib.error_temp:
+        print('Connection Timeout, Enter your credentials again\n')
+        credentials(ftp)
+
+
+def remove_dir(ftp):
+    """Creates new directory"""
+    input_dir = input("Enter the new directory name: ")
+    try:
+        ftp.rmd(input_dir)
+        print('Directory Removed')
+        return 1
+    except ftplib.error_perm:
+        print('You do not have write permission in this'
+              ' folder or this folder has already been removed')
+        return 0
+    except ftplib.error_temp:
+        print('Connection Timeout, Enter your credentials again\n')
+        credentials(ftp)
+
+
 def upload():
     """Performs all tasks required for a successful upload to the ftp server"""
-    server = input("Enter the address you want to connect to: ")
-    ftp = set_ftp(server.strip())
-
-    if type(ftp) == ftplib.FTP:
+    ftp = set_ftp()
+    if isinstance(ftp, ftplib.FTP):
         credentials(ftp)
         done = 0
         option = 0
+        print("Upload")
         while not done:
-            data = []
-            try:
-                ftp.dir(data.append)
-            except ftplib.error_temp:
-                print('Connection Timeout, Enter your credentials again\n')
-                credentials(ftp)
-            finally:
-                print('Upload - Current Directory\n')
-                print('Permissions                                Date           Name')
-                for line in data:
-                    print(line)
-                print("\n1 - Select file to Upload, 2 - Change directory")
-                print(" 3 - Make new directory, 4 - Delete file")
-                print("(Enter a corresponding number)")
-                input()
+            pwd(ftp)
+            print("\n1 - Select file to Upload, 2 - Change directory, 3 - Make new directory")
+            print("4 - Delete file, 5 - Refresh, 6 - Show Current Directory, 7 - Remove Directory")
+            print("(Enter a corresponding number)")
+            while not option:
+                option = input()
+                try:
+                    option = int(option)
+                except ValueError:
+                    print("Invalid Selection, Select a valid number from the options")
+                    option = 0
+            if option == 5:
+                option = 0
+                continue
+            elif option == 6:
+                print(get_dir_path(ftp))
+                input("Press enter to continue")
+                option = 0
+            elif option == 2:
+                change_attempt = 0
+                while change_attempt < 3:
+                    if change_dir(ftp):
+                        break
+                    else:
+                        change_attempt += 1
+                if change_attempt == 3:
+                    print("Failed, Enter the path again")
+                option = 0
+            elif option == 3:
+                create_dir(ftp)
+                option = 0
+            elif option == 7:
+                remove_dir(ftp)
+                option = 0
+            # elif option  == 4:
         ftp.quit()
     else:
         print(ftp)
@@ -111,4 +229,5 @@ def upload():
 
 
 def download():
+    """Performs all tasks required for a successful download from the ftp server"""
     pass
