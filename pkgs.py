@@ -8,16 +8,17 @@ import ftplib
 import sys
 import socket
 from getpass import getpass
-# import os
+import os
+import tkinter as tk
+from tkinter import filedialog
 import main
 
 
 def print_intro():
     """Prints intro prompt for user to follow"""
-    print("""What do you want to Do ?
-    1. Upload
-    2. Download
-    3. Exit\n""")
+    print("""
+    1. Continue
+    2. Exit\n""")
 
 
 def check_input(selected_operation):
@@ -30,11 +31,9 @@ def check_input(selected_operation):
     except ValueError:
         pass
     finally:
-        if selected_operation == "upload" or selected_operation == 1:
-            return_value = upload
-        elif selected_operation == "download" or selected_operation == 2:
-            return_value = download
-        elif selected_operation == "exit" or selected_operation == 3:
+        if selected_operation == "continue" or selected_operation == 1:
+            return_value = router
+        elif selected_operation == "exit" or selected_operation == 2:
             sys.exit()
         else:
             print("Invalid Choice, Enter a valid number of choice")
@@ -57,7 +56,7 @@ def credentials(ftp):
             tries -= 1
         except ConnectionAbortedError:
             print("\nAn Unexpected error occured\n")
-            tries = 0
+            break
         finally:
             if tries == 0:
                 ftp.quit()
@@ -83,7 +82,7 @@ def set_ftp():
     except socket.gaierror:
         print("\nFailed to get address info ")
         return "Address Resolution Failure, check your address and try again\n"
-    except:
+    except ftplib.all_errors:
         return "\nAn Unexpected error occ1urred\n"
 
 
@@ -132,7 +131,7 @@ def pwd(ftp):
         credentials(ftp)
     finally:
         print('Current Directory - ' + temp_dir + '\n')
-        print('Permission   Date Created  Filename')
+        print('Permission   Date          Filename')
         for line in data:
             line = line.split()
             try:
@@ -142,9 +141,12 @@ def pwd(ftp):
                 file_type = 'File'
             finally:
                 ftp.cwd(temp_dir)
-
+                file_name = line[8]
+                if len(line) != 9:
+                    for i in line[9:]:
+                        file_name = file_name + ' ' + str(i)
             print(line[0] + '   ' + line[5], line[6], line[7] + "  "
-                  + line[8] + "     " + file_type)
+                  + file_name + "     " + file_type)
 
 
 def create_dir(ftp):
@@ -178,18 +180,73 @@ def remove_dir(ftp):
         credentials(ftp)
 
 
-def upload():
+def delete_file(ftp):
+    file_delete = input("Enter the filename to delete: ")
+    try:
+        ftp.delete(file_delete)
+        print('\nFile Deleted\n')
+    except ftplib.error_perm:
+        print('Specified file does not exist or you do not have permission to delete it')
+    except ftplib.error_temp:
+        print('Connection Timeout, Enter your credentials again\n')
+        credentials(ftp)
+    except ftplib.all_errors:
+        print('An unexpected error occurred\n')
+
+
+def upload_file(ftp):
+    print("Select file to be uploaded")
+    root = tk.Tk()
+    root.withdraw()
+    file_path = filedialog.askopenfilename()
+    file_type = ""
+    file = ""
+    try:
+        file = open(file_path, 'r')
+        file.readlines()
+        file_type = ftp.storlines
+    except UnicodeDecodeError:
+        file_type = ftp.storbinary
+    except FileNotFoundError:
+        print("\nFile not found\n")
+        file_type = ""
+        return 0
+    finally:
+        if file_type != "":
+            file.close()
+            file = open(file_path, 'rb')
+            file_name = os.path.basename(file_path)
+            try:
+                file_type(f"STOR {file_name}", file)
+                print("\nUploaded Successfully\n")
+                file.close()
+                return 1
+            except ftplib.error_perm:
+                print('\nYou dont have permission to create a file in this directory\n')
+                file.close()
+                return 0
+        else:
+            return 0
+
+
+def download_file():
+    """Performs all tasks required for a successful download from the ftp server"""
+    file_download = input('Enter the filename to be downloaded: ')
+
+    pass
+
+
+def router():
     """Performs all tasks required for a successful upload to the ftp server"""
     ftp = set_ftp()
     if isinstance(ftp, ftplib.FTP):
         credentials(ftp)
         done = 0
         option = 0
-        print("Upload")
         while not done:
             pwd(ftp)
-            print("\n1 - Select file to Upload, 2 - Change directory, 3 - Make new directory")
-            print("4 - Delete file, 5 - Refresh, 6 - Show Current Directory, 7 - Remove Directory")
+            print("\n1 - Upload File, 2 - Download File, 3 - Change directory, 4 - New directory,")
+            print("5 - Delete file, 6 - Remove directory, 7 - Refresh, 8 - Show Current Directory,  9 - Quit")
             print("(Enter a corresponding number)")
             while not option:
                 option = input()
@@ -198,14 +255,14 @@ def upload():
                 except ValueError:
                     print("Invalid Selection, Select a valid number from the options")
                     option = 0
-            if option == 5:
+            if option == 7:
                 option = 0
                 continue
-            elif option == 6:
+            elif option == 8:
                 print(get_dir_path(ftp))
                 input("Press enter to continue")
                 option = 0
-            elif option == 2:
+            elif option == 3:
                 change_attempt = 0
                 while change_attempt < 3:
                     if change_dir(ftp):
@@ -215,19 +272,25 @@ def upload():
                 if change_attempt == 3:
                     print("Failed, Enter the path again")
                 option = 0
-            elif option == 3:
+            elif option == 4:
                 create_dir(ftp)
                 option = 0
-            elif option == 7:
+            elif option == 6:
                 remove_dir(ftp)
                 option = 0
-            # elif option  == 4:
-        ftp.quit()
+            elif option == 5:
+                delete_file(ftp)
+                option = 0
+            elif option == 1:
+                upload_file(ftp)
+                option = 0
+            elif option == 9:
+                ftp.quit()
+                sys.exit()
+            else:
+                print('Invalid choice')
+                option = 0
+
     else:
         print(ftp)
         main.run()
-
-
-def download():
-    """Performs all tasks required for a successful download from the ftp server"""
-    pass
