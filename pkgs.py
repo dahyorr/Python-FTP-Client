@@ -149,6 +149,39 @@ def pwd(ftp):
                   + file_name + "     " + file_type)
 
 
+def check_if_exist(ftp, check_file):
+    """Check if a file exists on the server"""
+    temp_dir = get_dir_path(ftp)
+    data = []
+    filenames = []
+    try:
+        ftp.dir(data.append)
+    except ftplib.error_temp:
+        print('Connection Timeout, Enter your credentials again\n')
+        credentials(ftp)
+    for line in data:
+        line = line.split()
+        try:
+            ftp.cwd(temp_dir + '/' + line[8])
+            file_type = 'Folder'
+        except ftplib.error_perm:
+            file_type = 'File'
+        finally:
+            ftp.cwd(temp_dir)
+        if file_type == 'File':
+            file_name = line[8]
+            if len(line) != 9:
+                for i in line[9:]:
+                    file_name = file_name + ' ' + str(i)
+        else:
+            continue
+        filenames.append(file_name)
+    if check_file in filenames:
+        return 1
+    else:
+        return 0
+
+
 def create_dir(ftp):
     """Creates new directory"""
     new_mkdir = input("Enter the new directory name: ")
@@ -165,7 +198,7 @@ def create_dir(ftp):
 
 
 def remove_dir(ftp):
-    """Creates new directory"""
+    """Removes directory From the server"""
     input_dir = input("Enter the new directory name: ")
     try:
         ftp.rmd(input_dir)
@@ -181,6 +214,7 @@ def remove_dir(ftp):
 
 
 def delete_file(ftp):
+    """Deletes File From the server"""
     file_delete = input("Enter the filename to delete: ")
     try:
         ftp.delete(file_delete)
@@ -195,45 +229,60 @@ def delete_file(ftp):
 
 
 def upload_file(ftp):
+    """Uploads File to the server"""
     print("Select file to be uploaded")
     root = tk.Tk()
     root.withdraw()
     file_path = filedialog.askopenfilename()
-    file_type = ""
-    file = ""
-    try:
-        file = open(file_path, 'r')
-        file.readlines()
-        file_type = ftp.storlines
-    except UnicodeDecodeError:
-        file_type = ftp.storbinary
-    except FileNotFoundError:
-        print("\nFile not found\n")
+    if file_path != '':
         file_type = ""
-        return 0
-    finally:
-        if file_type != "":
-            file.close()
-            file = open(file_path, 'rb')
-            file_name = os.path.basename(file_path)
+        file = ""
+        file_name = os.path.basename(file_path)
+        if not check_if_exist(ftp, file_name):
             try:
-                file_type(f"STOR {file_name}", file)
-                print("\nUploaded Successfully\n")
-                file.close()
-                return 1
-            except ftplib.error_perm:
-                print('\nYou dont have permission to create a file in this directory\n')
-                file.close()
+                file = open(file_path, 'r')
+                file.readlines()
+                file_type = ftp.storlines
+            except UnicodeDecodeError:
+                file_type = ftp.storbinary
+            except FileNotFoundError:
+                print("\nFile not found\n")
+                file_type = ""
                 return 0
+            finally:
+                if file_type != "":
+                    file.close()
+                    file = open(file_path, 'rb')
+                    try:
+                        file_type(f"STOR {file_name}", file)
+                        print("\nUploaded Successfully\n")
+                        file.close()
+                        return 1
+                    except ftplib.error_perm:
+                        print('\nYou dont have permission to create a file in this directory\n')
+                        file.close()
+                        return 0
+                else:
+                    return 0
         else:
-            return 0
+            print('\nThe file already exists\n')
+    else:
+        return 0
 
 
-def download_file():
+def download_file(ftp):
     """Performs all tasks required for a successful download from the ftp server"""
     file_download = input('Enter the filename to be downloaded: ')
-
-    pass
+    if check_if_exist(ftp, file_download):
+        root = tk.Tk()
+        root.withdraw()
+        save_path = filedialog.askdirectory()
+        if save_path != '':
+            pass  # complete
+        else:
+            return 0
+    else:
+        print("File does not exist")
 
 
 def router():
@@ -246,7 +295,8 @@ def router():
         while not done:
             pwd(ftp)
             print("\n1 - Upload File, 2 - Download File, 3 - Change directory, 4 - New directory,")
-            print("5 - Delete file, 6 - Remove directory, 7 - Refresh, 8 - Show Current Directory,  9 - Quit")
+            print("5 - Delete file, 6 - Remove directory, 7 - Refresh, 8 - Show Current Directory,"
+                  "  9 - Quit")
             print("(Enter a corresponding number)")
             while not option:
                 option = input()
@@ -285,8 +335,17 @@ def router():
                 upload_file(ftp)
                 option = 0
             elif option == 9:
-                ftp.quit()
+                try:
+                    print('Bye')
+                    ftp.quit()
+                except ConnectionRefusedError:
+                    pass
+                except ConnectionAbortedError:
+                    pass
                 sys.exit()
+            elif option == 2:
+                download_file(ftp)
+                option = 0
             else:
                 print('Invalid choice')
                 option = 0
