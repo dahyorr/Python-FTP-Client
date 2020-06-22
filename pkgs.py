@@ -231,7 +231,7 @@ def upload_file(ftp):
 
 def download_file():
     """Performs all tasks required for a successful download from the ftp server"""
-    file_download = input('Enter the filename to be downloaded: ') 
+    file_download = input('Enter the filename to be downloaded: ')
 
     pass
 

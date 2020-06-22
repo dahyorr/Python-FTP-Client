@@ -1,4 +1,6 @@
 tell difference btw file and folder(with color)
 remove dir for upload
-
+add progress bar
 future v2: change ftp package from ftplib to ftputil
+check if file exists before uploading
+add move file
