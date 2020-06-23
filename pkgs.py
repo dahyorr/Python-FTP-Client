@@ -83,7 +83,7 @@ def set_ftp():
         print("\nFailed to get address info ")
         return "Address Resolution Failure, check your address and try again\n"
     except ftplib.all_errors:
-        return "\nAn Unexpected error occ1urred\n"
+        return "\nAn Unexpected error occurred check your network connection and try again\n"
 
 
 def get_dir_path(ftp):
@@ -273,12 +273,26 @@ def upload_file(ftp):
 def download_file(ftp):
     """Performs all tasks required for a successful download from the ftp server"""
     file_download = input('Enter the filename to be downloaded: ')
+    origin_path = os.getcwd()
+    file = ""
     if check_if_exist(ftp, file_download):
         root = tk.Tk()
         root.withdraw()
         save_path = filedialog.askdirectory()
         if save_path != '':
-            pass  # complete
+            try:
+                os.chdir(save_path)
+                file = open(file_download, 'wb')
+                ftp.retrbinary(f"RETR {file_download}", file.write)
+                print("\nFile has been downloaded successfully\n")
+            except ftplib.error_perm:
+                print("Failed to download file, Check you have the right permissions")
+            finally:
+                if file != "":
+                    file.close()
+                if os.getcwd() != origin_path:
+                    os.chdir(origin_path)
+
         else:
             return 0
     else:
